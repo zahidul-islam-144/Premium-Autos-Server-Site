@@ -21,8 +21,8 @@ async function run() {
     await client.connect();
     const database = client.db("Premium-Autos");
     const carCollection = database.collection("car-details");
-    // const orderCollection = database.collection("order-details");
-    const usersCollection = database.collection("users")
+    const ordersCollection = database.collection("all-orders");
+    const usersCollection = database.collection("users");
 
     // posting brand new user
     // app.post("/premium-autos/users", async (req, res) => {
@@ -83,7 +83,7 @@ async function run() {
       res.json(result);
     });
 
-    // updating car data
+    // Admin: updating car data
     app.get("/premium-autos/selected-car/:eId", async (req, res) => {
       const selectedCarData = req.params.eId;
       console.log("updating: ", selectedCarData);
@@ -122,25 +122,43 @@ async function run() {
       res.json(result);
     });
 
+    // select-now car api (place order api)
+    app.get("/premium-autos/select-now/:sId", async (req, res) => {
+      // console.log(req);
+      const selectedCarId = req.params.sId;
+      console.log(selectedCarId);
+      const query = { _id: ObjectId(selectedCarId) };
+      const result = await carCollection.findOne(query);
+      res.json(result);
+    });
 
-// auth data
-app.post('/premium-autos/users', async (req, res) => {
-  const user = req.body;
-  const result = await usersCollection.insertOne(user);
-  console.log(result);
-  res.json(result);
-});
+    app.post('/premium-autos/orders', async (req, res) => {
+      const addOrder = req.body;
+      console.log(addOrder);
+      const result = await ordersCollection.insertOne(addOrder); 
+      res.json(result);
+    })
 
-app.put('/premium-autos/users', async (req, res) => {
-  const user = req.body;
-  const filter = { email: user.email };
-  const options = { upsert: true };
-  const updateDoc = { $set: user };
-  const result = await usersCollection.updateOne(filter, updateDoc, options);
-  res.json(result);
-});
+    // auth api
+    app.post("/premium-autos/users", async (req, res) => {
+      const user = req.body;
+      const result = await usersCollection.insertOne(user);
+      console.log(result);
+      res.json(result);
+    });
 
-
+    app.put("/premium-autos/users", async (req, res) => {
+      const user = req.body;
+      const filter = { email: user.email };
+      const options = { upsert: true };
+      const updateDoc = { $set: user };
+      const result = await usersCollection.updateOne(
+        filter,
+        updateDoc,
+        options
+      );
+      res.json(result);
+    });
   } finally {
     // await client.close();
   }
