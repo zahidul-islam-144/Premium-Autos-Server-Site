@@ -23,6 +23,7 @@ async function run() {
     const carCollection = database.collection("car-details");
     const ordersCollection = database.collection("all-orders");
     const usersCollection = database.collection("users");
+    const feedbackCollection = database.collection("all-feedbacks");
 
     // posting brand new user
     // app.post("/premium-autos/users", async (req, res) => {
@@ -58,6 +59,19 @@ async function run() {
       console.log(query);
       const result = await carCollection.findOne(query);
       res.json(result);
+    });
+
+    // rating api
+    app.post("/premium-autos/feedbacks", async (req, res) => {
+      const addFeedback = req.body;
+      console.log(addFeedback);
+      const result = await feedbackCollection.insertOne(addFeedback);
+      res.json(result);
+    });
+
+    app.get("/premium-autos/all-feedbacks", async (req, res) => {
+      const getAllFeedbacks = await feedbackCollection.find({}).toArray();
+      res.json(getAllFeedbacks);
     });
 
     // Public: fecthing all cars data from server
@@ -122,6 +136,46 @@ async function run() {
       res.json(result);
     });
 
+    // Make Admin api:
+    app.put("/premium-autos/users/make-admin", async (req, res) => {
+      const user = req.body;
+      console.log(user);
+      const setAdmin = { email: user.email };
+      const updateDoc = { $set: { role: "admin" } };
+      const makeAdmin = await usersCollection.updateOne(setAdmin, updateDoc);
+      console.log(setAdmin);
+      res.json(makeAdmin);
+    });
+
+    // get admin data to set admin
+    app.get("/premium-autos/users/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      let isAdmin = false;
+      if (user?.role === "admin") {
+        isAdmin = true;
+      }
+      res.json({ admin: isAdmin });
+    });
+
+    // Manage All orders api
+    app.get("/premium-autos/manage-all-orders", async (req, res) => {
+      const allOrders = await ordersCollection.find({});
+      const result = await allOrders.toArray();
+      res.json(result);
+    });
+// manage all order deletion api
+    app.delete("/premium-autos/delete-user-order/:delUserId", async (req, res) => {
+      const getUserId = req.params.delUserId;
+      console.log(getUserId);
+      const query = { _id: ObjectId(getUserId) };
+      const result = await ordersCollection.deleteOne(query);
+      res.json(result);
+    });
+
+    // USER PANEL TASKS:
+
     // select-now car api (place order api)
     app.get("/premium-autos/select-now/:sId", async (req, res) => {
       // console.log(req);
@@ -132,14 +186,80 @@ async function run() {
       res.json(result);
     });
 
-    app.post('/premium-autos/orders', async (req, res) => {
+    // confirm order form api
+    app.post("/premium-autos/orders", async (req, res) => {
       const addOrder = req.body;
+      addOrder["status"] = false;
       console.log(addOrder);
-      const result = await ordersCollection.insertOne(addOrder); 
+      const result = await ordersCollection.insertOne(addOrder);
       res.json(result);
-    })
+    });
 
-    // auth api
+    // status changing api
+    app.put("/premium-autos/orders/:id", async (req, res) => {
+      const id = { _id: ObjectId(req.params.id) };
+      const data = req.body;
+      delete data["_id"];
+      data["status"] = !data.status;
+      const result = await ordersCollection.updateOne(id, {
+        $set: data,
+      });
+      res.json(result);
+    });
+
+    // User : see order api
+    app.get("/premium-autos/my-orders/:email", async (req, res) => {
+      const loggedInEmail = req.params.email;
+      const query = { client_email: loggedInEmail };
+      console.log(query);
+      const result = await ordersCollection.find(query).toArray();
+      res.json(result);
+    });
+
+    // edit my order api (review order)
+    // get selected order data
+    app.get("/premium-autos/selected-order/:id", async (req, res) => {
+      const selectedOrder = req.params.id;
+      const query = { _id: ObjectId(selectedOrder) };
+      const result = await ordersCollection.findOne(query);
+      res.json(result);
+    });
+    // updating selected order
+    app.put("/premium-autos/update-order/:eoId", async (req, res) => {
+      const updatedOrderId = req.params.eoId;
+      const filter = { _id: ObjectId(updatedOrderId) };
+      // console.log(filter);
+      // console.log("put:", req.body);
+      const options = { upsert: true };
+      delete req.body["_id"];
+      const updateDoc = {
+        $set: req.body,
+      };
+
+      const result = await ordersCollection.updateOne(
+        filter,
+        updateDoc,
+        options
+      );
+      res.json(result);
+      // console.log(result);
+    });
+
+    app.delete("/premium-autos/delete-order/:orderId", async (req, res) => {
+      const getOrderId = req.params.orderId;
+      console.log(getOrderId);
+      const query = { _id: ObjectId(getOrderId) };
+      const result = await ordersCollection.deleteOne(query);
+      res.json(result);
+    });
+
+    // rating api
+    app.get('/premium-autos/all-feedbacks', async (req, res) => {
+      const ratings = await feedbackCollection.find({}).toArray();
+      res.json(ratings);
+    })
+    
+    // auth api (brand new user data)
     app.post("/premium-autos/users", async (req, res) => {
       const user = req.body;
       const result = await usersCollection.insertOne(user);
